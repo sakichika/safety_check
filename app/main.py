@@ -14,6 +14,8 @@ from sqlalchemy import func
 from app.routers import admin_persistent, public_persistent, admin_web
 # （旧インシデント方式のAPIを併用したい場合は、下記2行をコメント解除）
 # from app.routers import admin, public
+# 既存インポートの近くに追記
+from app.migrations_bootstrap import run_bootstrap_migrations
 
 app = FastAPI(title="Disaster Check-in (v2 persistent page)")
 
@@ -33,6 +35,9 @@ app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, same_site="lax")
 
 # DBテーブル作成（MVP）— 本番はAlembic推奨
 Base.metadata.create_all(bind=engine)
+
+# Base.metadata.create_all(bind=engine) の直後あたりに追記
+run_bootstrap_migrations(engine)
 
 # 起動時：現在の期間（Period）が無ければ自動作成
 @app.on_event("startup")
