@@ -55,3 +55,7 @@ app.include_router(admin_persistent.router)   # /admin/api/...（JSON）
 @app.get("/")
 def root():
     return {"ok": True, "service": "disaster-checkin", "version": 2}
+
+@app.head("/")
+def root_head():
+    return {}

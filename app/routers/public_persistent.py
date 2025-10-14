@@ -68,7 +68,10 @@ def my_latest(email: str, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == email).one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    rep = db.query(ReportP).filter(ReportP.period_id == cur.id, ReportP.user_id == user.id).one_or_none()
+    rep = db.query(ReportP).filter(
+        ReportP.period_id == cur.id,
+        ReportP.user_id == user.id
+    ).one_or_none()
     if not rep:
         raise HTTPException(status_code=404, detail="No report yet")
     return {"period_id": rep.period_id, "user_id": rep.user_id, "status": rep.status, "updated_at": rep.updated_at}
