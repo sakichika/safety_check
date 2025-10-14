@@ -16,11 +16,13 @@ class Period(Base):
     ended_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 class ReportP(Base):
-    __tablename__ = "reports_p"  # 現在期間の最新レコード（period×userで一意）
+    __tablename__ = "reports_p"
     period_id: Mapped[str] = mapped_column(String(36), ForeignKey("periods.id", ondelete="CASCADE"), primary_key=True)
     user_id:   Mapped[str] = mapped_column(String(36), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
 
-    status: Mapped[str] = mapped_column(String(20), nullable=False)  # 'safe'|'evacuating'|'need_help'|'unknown'
+    contact_email: Mapped[str] = mapped_column(String(320), nullable=False)
+
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
     shelter_name: Mapped[str | None] = mapped_column(String(200))
     shelter_type: Mapped[str | None] = mapped_column(String(50))
     shelter_addr: Mapped[str | None] = mapped_column(String(300))
@@ -29,6 +31,7 @@ class ReportP(Base):
     damage_level: Mapped[str | None] = mapped_column(String(20))
     damage_notes: Mapped[str | None] = mapped_column(Text)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
 
 class ReportHistoryP(Base):
     __tablename__ = "report_history_p"

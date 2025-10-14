@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>安否報告 / Safety Status Report（現在の期間 / Current Period）</title>
+    <title>安否報告 / Safety Status Report</title>
     <style>
       :root { --muted:#666; --border:#ddd; }
       body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 2rem; }
@@ -31,40 +31,48 @@
       </p>
     {% else %}
       <p class="muted">
-        現在、受付期間は開始されていません（管理者にお問い合わせください）。<br>
-        <span lang="en">No active reporting period. Please contact your administrator.</span>
+        現在、受付期間は開始されていません。<br>
+        <span lang="en">No active reporting period.</span>
       </p>
     {% endif %}
 
     {% if request.query_params.get('ok') %}
       <div class="ok">
-        報告を受け付けました。必要に応じて再度更新できます。<br>
-        <span lang="en">Your report has been received. You can resubmit to update if needed.</span>
+        報告を受け付けました（再送で上書き可）。<br>
+        <span lang="en">Your report has been received (resubmit to update).</span>
       </div>
     {% endif %}
 
     <form action="/public/report" method="post">
-      <!-- Identity -->
       <fieldset>
         <legend>本人確認 / <span lang="en">Identity</span></legend>
 
-        <label for="email" class="req">
-          登録メールアドレス / <span lang="en">Registered email</span>
-        </label>
+        <label class="req" for="grade">属性 / <span lang="en">Affiliation</span></label>
+        <select id="grade" name="grade" required>
+          <option value="">選択してください / <span lang="en">Select</span></option>
+          <option>Staff</option>
+          <option>Doctor</option>
+          <option>Master</option>
+          <option>Bachelor</option>
+        </select>
+
+        <label class="req" for="name">氏名 / <span lang="en">Name</span></label>
+        <select id="name" name="name" required>
+          <option value="">先に属性を選択してください / <span lang="en">Select affiliation first</span></option>
+        </select>
+
+        <label class="req" for="email">連絡用メール / <span lang="en">Contact email</span></label>
         <input id="email" name="email" type="email" required placeholder="you@example.com" />
         <small class="hint">
-          名簿に登録されているメールのみ受け付けます。<br>
-          <span lang="en">Only emails in the roster are accepted.</span>
+          メールは本人特定には使いません。連絡のために必須です。<br>
+          <span lang="en">Email is required for contact only; identity is determined by affiliation + name.</span>
         </small>
       </fieldset>
 
-      <!-- Status & Shelter -->
       <fieldset>
         <legend>安否・避難先 / <span lang="en">Status & Shelter</span></legend>
 
-        <label for="status" class="req">
-          安否状況 / <span lang="en">Safety status</span>
-        </label>
+        <label class="req" for="status">安否状況 / <span lang="en">Safety status</span></label>
         <select id="status" name="status" required>
           <option value="safe">無事 / <span lang="en">Safe</span></option>
           <option value="evacuating">避難中 / <span lang="en">Evacuating</span></option>
@@ -74,9 +82,7 @@
 
         <div class="row">
           <div>
-            <label for="shelter_type">
-              避難先の種類（任意） / <span lang="en">Shelter type (optional)</span>
-            </label>
+            <label for="shelter_type">避難先の種類（任意） / <span lang="en">Shelter type (optional)</span></label>
             <select id="shelter_type" name="shelter_type">
               <option value="">未選択 / <span lang="en">Not specified</span></option>
               <option value="home">自宅 / <span lang="en">Home</span></option>
@@ -87,26 +93,19 @@
             </select>
           </div>
           <div>
-            <label for="shelter_name">
-              避難先名称（任意） / <span lang="en">Shelter name (optional)</span>
-            </label>
+            <label for="shelter_name">避難先名称（任意） / <span lang="en">Shelter name (optional)</span></label>
             <input id="shelter_name" name="shelter_name" placeholder="例: ○○小学校 / e.g., ABC Elementary" />
           </div>
         </div>
 
-        <label for="shelter_addr">
-          住所（任意） / <span lang="en">Address (optional)</span>
-        </label>
+        <label for="shelter_addr">住所（任意） / <span lang="en">Address (optional)</span></label>
         <input id="shelter_addr" name="shelter_addr" placeholder="例: 東京都千代田区… / e.g., 1-1-1, Chiyoda, Tokyo" />
       </fieldset>
 
-      <!-- Damage -->
       <fieldset>
         <legend>被害状況（任意） / <span lang="en">Damage (optional)</span></legend>
 
-        <label for="damage_level">
-          被害レベル / <span lang="en">Damage level</span>
-        </label>
+        <label for="damage_level">被害レベル / <span lang="en">Damage level</span></label>
         <select id="damage_level" name="damage_level">
           <option value="">未選択 / <span lang="en">Not specified</span></option>
           <option value="none">なし / <span lang="en">None</span></option>
@@ -115,19 +114,42 @@
           <option value="severe">重大 / <span lang="en">Severe</span></option>
         </select>
 
-        <label for="damage_notes">
-          詳細 / <span lang="en">Details</span>
-        </label>
+        <label for="damage_notes">詳細 / <span lang="en">Details</span></label>
         <textarea id="damage_notes" name="damage_notes" rows="4"
           placeholder="例: 家屋のひび割れ、停電など / e.g., Cracks in walls, power outage"></textarea>
       </fieldset>
 
       <button type="submit">送信する / <span lang="en">Submit</span></button>
-
-      <p class="hint" style="margin-top:.75rem;">
-        送信後は同じメールで再送信することで更新できます。<br>
-        <span lang="en">You can update later by submitting again with the same email.</span>
-      </p>
     </form>
+
+    <script>
+      async function loadRoster() {
+        try {
+          const res = await fetch('/public/roster', {cache:'no-store'});
+          const data = await res.json(); // {Staff:[...], Doctor:[...], ...}
+          const gradeSel = document.getElementById('grade');
+          const nameSel  = document.getElementById('name');
+
+          function refillNames() {
+            const g = gradeSel.value;
+            nameSel.innerHTML = '';
+            const list = data[g] || [];
+            if (list.length === 0) {
+              nameSel.innerHTML = '<option value="">該当なし / <span lang="en">No entries</span></option>';
+              return;
+            }
+            nameSel.appendChild(new Option('', ''));
+            list.forEach(n => nameSel.appendChild(new Option(n, n)));
+          }
+
+          gradeSel.addEventListener('change', refillNames);
+          // 初期表示（既に属性が選ばれていれば反映）
+          if (gradeSel.value) refillNames();
+        } catch (e) {
+          console.error('roster load failed', e);
+        }
+      }
+      loadRoster();
+    </script>
   </body>
 </html>

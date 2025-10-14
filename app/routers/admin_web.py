@@ -42,6 +42,16 @@ def get_or_create_current_period(db: Session) -> Period:
     db.refresh(cur)
     return cur
 
+def _normalize_grade(s: str) -> str:
+    if not s: return ""
+    x = s.strip().lower()
+    m = {
+        "staff":"Staff","doctor":"Doctor",
+        "master":"Master","m":"Master",
+        "bachelor":"Bachelor","bacholar":"Bachelor","bachelar":"Bachelor","b":"Bachelor"
+    }
+    return m.get(x, s.strip().title())
+
 # --- auth pages ---
 @router.get("/admin/login", response_class=HTMLResponse)
 async def admin_login_page(request: Request):
@@ -134,17 +144,23 @@ async def admin_users_upload(request: Request, csvfile: UploadFile = File(...), 
     reader = csv.DictReader(io.StringIO(content))
     upserted = 0
     for row in reader:
-        email = (row.get('email') or '').strip()
-        name = (row.get('name') or '').strip()
-        if not email or not name:
+        grade = _normalize_grade((row.get('grade') or '').strip())
+        name  = (row.get('name') or '').strip()
+        if not grade or not name:
             continue
-        user = db.query(User).filter(User.email == email).one_or_none()
+
+        user = db.query(User).filter(User.grade == grade, User.name == name).one_or_none()
         if not user:
-            user = User(email=email, name=name)
+            user = User(grade=grade, name=name)
             db.add(user)
             db.flush()
-        user.dept = row.get('dept') or user.dept
-        user.phone = row.get('phone') or user.phone
+
+        email = (row.get('email') or '').strip()
+        user.email = email or user.email
+        user.dept  = (row.get('dept') or user.dept)
+        user.phone = (row.get('phone') or user.phone)
+
+        # roster
         group_name = row.get('group_name') or None
         is_active = (str(row.get('is_active', 'true')).lower() in ('true','1','yes','y'))
         if not user.roster:
@@ -152,6 +168,7 @@ async def admin_users_upload(request: Request, csvfile: UploadFile = File(...), 
         else:
             user.roster.group_name = group_name
             user.roster.is_active = is_active
+
         upserted += 1
     db.commit()
     return RedirectResponse(url="/admin/users?ok=1", status_code=303)
@@ -266,26 +283,19 @@ async def admin_reports_export(request: Request, status: str | None = None, db: 
 
 @router.get("/admin/users/template.csv")
 async def download_roster_template(request: Request):
-    # セッション未ログインならログインへリダイレクト
     guard = require_admin(request)
     if guard:
         return guard
-
-    # 見本行を含むテンプレ（必要なら見本行は削除してヘッダのみでもOK）
     rows = [
-        ["email","name","dept","phone","group_name","is_active"],
-        ["alice@example.com","Alice","DeptA","090-0000-0000","Lab-A","true"],
-        ["bob@example.com","Bob","DeptB","090-0000-0001","Lab-B","true"],
+        ["grade","name","email","dept","phone","group_name","is_active"],
+        ["Staff","Alice","alice@example.com","DeptA","090-0000-0000","Lab-A","true"],
+        ["Doctor","Dr. Bob","bob@example.com","DeptB","090-0000-0001","Lab-B","true"],
+        ["Master","Carol","", "DeptA","","Lab-A","true"],
+        ["Bachelor","Dave","","DeptC","","Lab-C","false"],
     ]
-
     import io, csv
     buf = io.StringIO()
-    writer = csv.writer(buf)
-    writer.writerows(rows)
-    data = buf.getvalue().encode("utf-8-sig")  # Excel対策: BOM付き
-
-    return Response(
-        content=data,
-        media_type="text/csv; charset=utf-8",
-        headers={"Content-Disposition": 'attachment; filename="roster_template.csv"'}
-    )
+    csv.writer(buf).writerows(rows)
+    data = buf.getvalue().encode("utf-8-sig")
+    return Response(content=data, media_type="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": 'attachment; filename="roster_template.csv"'})
