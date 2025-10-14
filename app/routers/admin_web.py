@@ -48,7 +48,8 @@ def _normalize_grade(s: str) -> str:
     m = {
         "staff":"Staff","doctor":"Doctor",
         "master":"Master","m":"Master",
-        "bachelor":"Bachelor","bacholar":"Bachelor","bachelar":"Bachelor","b":"Bachelor"
+        "bachelor":"Bachelor","bacholar":"Bachelor","bachelar":"Bachelor","b":"Bachelor",
+        "researcher":"Researcher", "r":"Researcher"
     }
     return m.get(x, s.strip().title())
 
@@ -292,6 +293,7 @@ async def download_roster_template(request: Request):
         ["Doctor","Dr. Bob","bob@example.com","DeptB","090-0000-0001","Lab-B","true"],
         ["Master","Carol","", "DeptA","","Lab-A","true"],
         ["Bachelor","Dave","","DeptC","","Lab-C","false"],
+        ["Researcher","Eve","eve@example.com","DeptR","","Lab-R","true"],
     ]
     import io, csv
     buf = io.StringIO()

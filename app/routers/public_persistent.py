@@ -19,7 +19,8 @@ templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
 def _normalize_grade(s: str) -> str:
     s = (s or "").strip().lower()
     m = {"staff":"Staff","doctor":"Doctor","master":"Master","m":"Master",
-         "bachelor":"Bachelor","bacholar":"Bachelor","bachelar":"Bachelor","b":"Bachelor"}
+         "bachelor":"Bachelor","bacholar":"Bachelor","bachelar":"Bachelor","b":"Bachelor",
+         "researcher":"Researcher", "r":"Researcher"}
     return m.get(s, (s or "").title())
 
 @router.get("/public/roster")
