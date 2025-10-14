@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>管理ダッシュボード</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 2rem; }
+    header { display:flex; justify-content:space-between; align-items:center; }
+    .cards { display:grid; grid-template-columns: repeat(auto-fit,minmax(160px,1fr)); gap: 1rem; margin-top: 1rem; }
+    .card { border:1px solid #ddd; padding:1rem; border-radius:.5rem; }
+    .muted { color:#666; }
+    form.inline { display:inline; }
+    a.button, button { padding:.5rem .75rem; border:1px solid #aaa; background:#f8f8f8; text-decoration:none; cursor:pointer; }
+    nav a { margin-right: .75rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>管理ダッシュボード</h1>
+    <nav>
+      <a href="/admin" class="button">ダッシュボード</a>
+      <a href="/admin/absentees" class="button">未報告者</a>
+      <a href="/admin/reports" class="button">報告一覧</a>
+      <a href="/admin/users" class="button">名簿管理</a>
+      <a href="/admin/logout" class="button">ログアウト</a>
+    </nav>
+  </header>
+
+  {% if just_reset %}
+    <p style="background:#e8fff0; padding:.5rem 1rem; border-left:4px solid #2a5;">期間をリセットしました。</p>
+  {% endif %}
+
+  <p class="muted">現在の期間: #{{ period.seq }} / 開始 {{ period.started_at }}</p>
+
+  <div class="cards">
+    <div class="card"><strong>名簿総数</strong><div style="font-size:1.6rem;">{{ total }}</div></div>
+    <div class="card"><strong>未報告</strong><div style="font-size:1.6rem;">{{ counts.get('no_report', 0) }}</div></div>
+    <div class="card"><strong>無事</strong><div style="font-size:1.6rem;">{{ counts.get('safe', 0) }}</div></div>
+    <div class="card"><strong>避難中</strong><div style="font-size:1.6rem;">{{ counts.get('evacuating', 0) }}</div></div>
+    <div class="card"><strong>支援が必要</strong><div style="font-size:1.6rem;">{{ counts.get('need_help', 0) }}</div></div>
+    <div class="card"><strong>不明</strong><div style="font-size:1.6rem;">{{ counts.get('unknown', 0) }}</div></div>
+  </div>
+
+  <h2>操作</h2>
+  <form class="inline" method="post" action="/admin/periods/reset" onsubmit="return confirm('現在の期間を終了して新しい期間を開始します。よろしいですか？');">
+    <button type="submit">期間をリセット（災害終了）</button>
+  </form>
+  <a class="button" href="/admin/absentees">未報告者を表示</a>
+  <a class="button" href="/admin/users">名簿をインポート</a>
+
+  <h2>ユーザー向けURL</h2>
+  <p><code>/f</code> を案内してください。Render Free のスリープ対策にもこのURLを定期Pingすると良いです。</p>
+</body>
+</html>

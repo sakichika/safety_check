@@ -1,0 +1,3 @@
+email,name,dept,phone,group_name,is_active
+alice@example.com,Alice,DeptA,090-0000-0000,Lab-A,true
+bob@example.com,Bob,DeptB,090-0000-0001,Lab-B,true

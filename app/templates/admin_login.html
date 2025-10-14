@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Admin Login</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 2rem; max-width: 520px; }
+    input, button { padding: .5rem; width: 100%; }
+    .card { border: 1px solid #ddd; padding: 1rem; }
+    .muted { color: #666; }
+    .err { color: #c00; margin-bottom: .5rem; }
+  </style>
+</head>
+<body>
+  <h1>管理者ログイン</h1>
+  {% if error %}<div class="err">トークンが違います。</div>{% endif %}
+  <div class="card">
+    <form method="post" action="/admin/login">
+      <label for="token">管理者トークン</label>
+      <input id="token" type="password" name="token" required />
+      <input type="hidden" name="next" value="{{ request.query_params.get('next') or '/admin' }}" />
+      <button type="submit" style="margin-top: .75rem;">ログイン</button>
+    </form>
+  </div>
+  <p class="muted" style="margin-top:1rem;">環境変数 <code>ADMIN_TOKEN</code> の値を入力してください。</p>
+</body>
+</html>

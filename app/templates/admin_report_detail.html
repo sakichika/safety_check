@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>報告詳細</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 2rem; max-width: 840px; }
+    a.button { padding:.5rem .75rem; border:1px solid #aaa; background:#f8f8f8; text-decoration:none; }
+    .card { border:1px solid #ddd; padding:1rem; border-radius:.5rem; }
+    dl { display:grid; grid-template-columns: 180px 1fr; gap:.5rem 1rem; }
+    dt { font-weight:600; }
+    dd { margin:0; }
+  </style>
+</head>
+<body>
+  <p><a href="/admin/reports" class="button">← 報告一覧へ</a></p>
+  <h1>報告詳細（期間 #{{ period.seq }}）</h1>
+
+  <div class="card">
+    <dl>
+      <dt>名前</dt><dd>{{ r.name }}</dd>
+      <dt>メール</dt><dd>{{ r.email }}</dd>
+      <dt>グループ</dt><dd>{{ r.group_name or '-' }}</dd>
+      <dt>状況</dt><dd>{{ r.status }}</dd>
+      <dt>更新時刻</dt><dd>{{ r.updated_at }}</dd>
+      <dt>避難先の種類</dt><dd>{{ r.shelter_type or '' }}</dd>
+      <dt>避難先名称</dt><dd>{{ r.shelter_name or '' }}</dd>
+      <dt>避難先住所</dt><dd>{{ r.shelter_addr or '' }}</dd>
+      <dt>被害レベル</dt><dd>{{ r.damage_level or '' }}</dd>
+      <dt>被害詳細</dt><dd style="white-space:pre-wrap">{{ r.damage_notes or '' }}</dd>
+      {% if r.shelter_lat and r.shelter_lng %}
+        <dt>座標</dt><dd>{{ r.shelter_lat }}, {{ r.shelter_lng }}</dd>
+      {% endif %}
+    </dl>
+  </div>
+</body>
+</html>

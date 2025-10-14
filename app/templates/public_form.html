@@ -1,0 +1,66 @@
+<!doctype html>
+form { max-width: 720px; }
+fieldset { border: 1px solid #ddd; padding: 1rem; margin-bottom: 1rem; }
+label { display:block; margin: .5rem 0 .25rem; }
+input, select, textarea { width: 100%; padding: .5rem; }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.ok { background: #e8fff0; padding: .75rem; border-left: 4px solid #22aa55; margin-bottom: 1rem; }
+</style>
+</head>
+<body>
+<h1>{{ incident.title }} — 安否報告</h1>
+{% if request.query_params.get('ok') %}
+<div class="ok">報告を受け付けました。必要に応じて再度更新できます。</div>
+{% endif %}
+<form action="/public/report/{{ incident.code }}" method="post">
+<fieldset>
+<legend>本人確認</legend>
+<label for="email">登録メールアドレス</label>
+<input id="email" name="email" type="email" required />
+</fieldset>
+<fieldset>
+<legend>安否・避難先</legend>
+<label for="status">安否状況</label>
+<select id="status" name="status" required>
+<option value="safe">無事</option>
+<option value="evacuating">避難中</option>
+<option value="need_help">支援が必要</option>
+<option value="unknown">不明</option>
+</select>
+<div class="row">
+<div>
+<label for="shelter_type">避難先の種類（任意）</label>
+<select id="shelter_type" name="shelter_type">
+<option value="">未選択</option>
+<option value="home">自宅</option>
+<option value="relative">親類・知人宅</option>
+<option value="school">学内</option>
+<option value="public">公的避難所</option>
+<option value="other">その他</option>
+</select>
+</div>
+<div>
+<label for="shelter_name">避難先名称（任意）</label>
+<input id="shelter_name" name="shelter_name" />
+</div>
+</div>
+<label for="shelter_addr">住所（任意）</label>
+<input id="shelter_addr" name="shelter_addr" />
+</fieldset>
+<fieldset>
+<legend>被害状況（任意）</legend>
+<label for="damage_level">被害レベル</label>
+<select id="damage_level" name="damage_level">
+<option value="">未選択</option>
+<option value="none">なし</option>
+<option value="minor">軽微</option>
+<option value="moderate">中程度</option>
+<option value="severe">重大</option>
+</select>
+<label for="damage_notes">詳細</label>
+<textarea id="damage_notes" name="damage_notes" rows="4"></textarea>
+</fieldset>
+<button type="submit">送信する</button>
+</form>
+</body>
+</html>

@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>未報告者</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 2rem; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ddd; padding: .5rem .75rem; }
+    header { display:flex; justify-content:space-between; align-items:center; }
+    a.button { padding:.5rem .75rem; border:1px solid #aaa; background:#f8f8f8; text-decoration:none; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>未報告者（現在の期間 #{{ period.seq }}）</h1>
+    <nav>
+      <a href="/admin" class="button">← ダッシュボードへ</a>
+    </nav>
+  </header>
+
+  <table>
+    <thead>
+      <tr><th>名前</th><th>メール</th><th>グループ</th></tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+        <tr>
+          <td>{{ r.name }}</td>
+          <td>{{ r.email }}</td>
+          <td>{{ r.group_name or '-' }}</td>
+        </tr>
+      {% endfor %}
+      {% if not rows %}
+        <tr><td colspan="3" style="text-align:center;color:#666;">未報告者は0人です。</td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+</body>
+</html>

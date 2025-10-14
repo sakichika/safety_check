@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>報告一覧</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 2rem; }
+    header { display:flex; justify-content:space-between; align-items:center; }
+    a.button, button { padding:.5rem .75rem; border:1px solid #aaa; background:#f8f8f8; text-decoration:none; cursor:pointer; }
+    table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
+    th, td { border: 1px solid #ddd; padding: .5rem .75rem; }
+    .filters { margin-top: .5rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>報告一覧（現在の期間 #{{ period.seq }}）</h1>
+    <nav>
+      <a href="/admin" class="button">← ダッシュボード</a>
+      <a href="/admin/reports/export{% if status %}?status={{ status }}{% endif %}" class="button">CSVエクスポート</a>
+    </nav>
+  </header>
+
+  <div class="filters">
+    <strong>フィルタ:</strong>
+    <a class="button" href="/admin/reports">すべて</a>
+    <a class="button" href="/admin/reports?status=safe">無事</a>
+    <a class="button" href="/admin/reports?status=evacuating">避難中</a>
+    <a class="button" href="/admin/reports?status=need_help">支援が必要</a>
+    <a class="button" href="/admin/reports?status=unknown">不明</a>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>更新時刻</th>
+        <th>名前</th>
+        <th>メール</th>
+        <th>グループ</th>
+        <th>状況</th>
+        <th>避難先</th>
+        <th>被害</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+        <tr>
+          <td>{{ r.updated_at }}</td>
+          <td><a href="/admin/reports/{{ r.user_id }}">{{ r.name }}</a></td>
+          <td>{{ r.email }}</td>
+          <td>{{ r.group_name or '-' }}</td>
+          <td>{{ r.status }}</td>
+          <td>{{ r.shelter_type or '' }} {{ r.shelter_name or '' }}</td>
+          <td>{{ r.damage_level or '' }}</td>
+        </tr>
+      {% endfor %}
+      {% if not rows %}
+        <tr><td colspan="7" style="text-align:center;color:#666;">該当する報告がありません。</td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+</body>
+</html>
