@@ -141,24 +141,29 @@ async def admin_users_upload(request: Request, csvfile: UploadFile = File(...), 
     guard = require_admin(request)
     if guard:
         return guard
-    content = csvfile.file.read().decode('utf-8-sig')
+
+    content = csvfile.file.read().decode('utf-8-sig')  # BOM対応
     reader = csv.DictReader(io.StringIO(content))
     upserted = 0
+
     for row in reader:
-        grade = _normalize_grade((row.get('grade') or '').strip())
+        grade = _normalize_grade(row.get('grade') or '')
         name  = (row.get('name') or '').strip()
         if not grade or not name:
+            # 必須2項目が無ければスキップ
             continue
 
+        # 本人一意キー＝(grade, name)
         user = db.query(User).filter(User.grade == grade, User.name == name).one_or_none()
         if not user:
-            user = User(grade=grade, name=name)
+            user = User(grade=grade, name=name)  # emailなしでも作成可
             db.add(user)
             db.flush()
 
+        # 連絡先や部局などは任意更新（emailが空でもOK）
         email = (row.get('email') or '').strip()
         user.email = email or user.email
-        user.dept  = (row.get('dept') or user.dept)
+        user.dept  = (row.get('dept')  or user.dept)
         user.phone = (row.get('phone') or user.phone)
 
         # roster
@@ -171,6 +176,7 @@ async def admin_users_upload(request: Request, csvfile: UploadFile = File(...), 
             user.roster.is_active = is_active
 
         upserted += 1
+
     db.commit()
     return RedirectResponse(url="/admin/users?ok=1", status_code=303)
 

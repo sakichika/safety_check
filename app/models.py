@@ -15,12 +15,11 @@ class User(Base):
     email: Mapped[str | None] = mapped_column(String(320), nullable=True)
 
     grade: Mapped[str] = mapped_column(String(20), nullable=False)
-    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    name:  Mapped[str] = mapped_column(String(200), nullable=False)
 
-    dept: Mapped[str | None] = mapped_column(String(200), nullable=True)
-    phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
-
-    role: Mapped[str] = mapped_column(String(20), default='member', nullable=False)
+    dept:  Mapped[str | None] = mapped_column(String(200), nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(50),  nullable=True)
+    role:  Mapped[str] = mapped_column(String(20), default='member', nullable=False)
 
     roster = relationship("Roster", back_populates="user", uselist=False)
 
