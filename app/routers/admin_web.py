@@ -115,8 +115,15 @@ async def admin_absentees(request: Request, db: Session = Depends(get_db)):
     if guard:
         return guard
     cur = get_or_create_current_period(db)
-    sql = text("""
-        SELECT u.id, u.name, u.email, rro.group_name
+    sql = text(
+        """
+        SELECT u.id,
+               u.name,
+               u.email,
+               u.dept,
+               u.phone,
+               rro.group_name,
+               rro.is_active
         FROM rosters rro
         JOIN users u ON u.id = rro.user_id
         LEFT JOIN reports_p rp
@@ -124,9 +131,148 @@ async def admin_absentees(request: Request, db: Session = Depends(get_db)):
         WHERE rro.is_active = TRUE
           AND rp.user_id IS NULL
         ORDER BY u.name
-    """)
+        """
+    )
     rows = [dict(r) for r in db.execute(sql, {"pid": cur.id}).mappings().all()]
-    return templates.TemplateResponse("admin_absentees.html", {"request": request, "period": cur, "rows": rows})
+    return templates.TemplateResponse("admin_absentees.html", {
+        "request": request,
+        "period": cur,
+        "rows": rows,
+        "ok": request.query_params.get("ok"),
+        "err": request.query_params.get("err"),
+    })
+
+@router.post("/admin/users/create_one")
+async def admin_users_create_one(
+    request: Request,
+    email: str = Form(...),
+    name: str = Form(...),
+    dept: str | None = Form(default=None),
+    phone: str | None = Form(default=None),
+    group_name: str | None = Form(default=None),
+    is_active: str | None = Form(default="true"),
+    db: Session = Depends(get_db),
+):
+    guard = require_admin(request)
+    if guard:
+        return guard
+
+    email = email.strip()
+    name = name.strip()
+    if not email or not name:
+        return RedirectResponse(url="/admin/absentees?err=required", status_code=303)
+
+    # 既存メールがあれば更新、なければ作成（upsert運用）
+    user = db.query(User).filter(User.email == email).one_or_none()
+    if not user:
+        user = User(email=email, name=name, dept=dept or None, phone=phone or None)
+        db.add(user)
+        db.flush()  # get id
+    else:
+        user.name = name
+        user.dept = dept or user.dept
+        user.phone = phone or user.phone
+
+    # roster upsert
+    if not user.roster:
+        user.roster = Roster(user_id=user.id)
+
+    user.roster.group_name = group_name or user.roster.group_name
+    user.roster.is_active = str(is_active).lower() in ("true", "1", "yes", "y", "on")
+
+    db.commit()
+    return RedirectResponse(url="/admin/absentees?ok=created", status_code=303)
+
+
+# ===== 単体ユーザー 更新（メール／名前／部署等／グループ／有効フラグ） =====
+@router.post("/admin/users/update_one")
+async def admin_users_update_one(
+    request: Request,
+    user_id: str = Form(...),
+    email: str = Form(...),
+    name: str = Form(...),
+    dept: str | None = Form(default=None),
+    phone: str | None = Form(default=None),
+    group_name: str | None = Form(default=None),
+    is_active: str | None = Form(default=None),  # 未チェックなら送られてこない → 変更しない
+    db: Session = Depends(get_db),
+):
+    guard = require_admin(request)
+    if guard:
+        return guard
+
+    user = db.query(User).filter(User.id == user_id).one_or_none()
+    if not user:
+        return RedirectResponse(url="/admin/absentees?err=nouser", status_code=303)
+
+    # メール重複チェック
+    email = email.strip()
+    other = db.query(User).filter(User.email == email, User.id != user_id).one_or_none()
+    if other:
+        return RedirectResponse(url="/admin/absentees?err=dupemail", status_code=303)
+
+    user.email = email
+    user.name = name.strip()
+    user.dept = dept or None
+    user.phone = phone or None
+
+    if not user.roster:
+        user.roster = Roster(user_id=user.id)
+
+    user.roster.group_name = group_name or None
+    if is_active is not None:
+        user.roster.is_active = str(is_active).lower() in ("true", "1", "yes", "y", "on")
+
+    db.commit()
+    return RedirectResponse(url="/admin/absentees?ok=updated", status_code=303)
+
+
+# ===== 有効/無効 トグル =====
+@router.post("/admin/users/{user_id}/toggle_active")
+async def admin_users_toggle_active(
+    request: Request,
+    user_id: str,
+    db: Session = Depends(get_db),
+):
+    guard = require_admin(request)
+    if guard:
+        return guard
+
+    user = db.query(User).filter(User.id == user_id).one_or_none()
+    if not user:
+        return RedirectResponse(url="/admin/absentees?err=nouser", status_code=303)
+
+    if not user.roster:
+        user.roster = Roster(user_id=user.id, is_active=True)
+    user.roster.is_active = not bool(user.roster.is_active)
+    db.commit()
+    return RedirectResponse(url="/admin/absentees?ok=toggle", status_code=303)
+
+
+# ===== 削除（Rosterのみ削除 or ユーザー完全削除） =====
+@router.post("/admin/users/{user_id}/delete")
+async def admin_users_delete(
+    request: Request,
+    user_id: str,
+    mode: str = Form(default="roster"),  # "roster" | "user"
+    db: Session = Depends(get_db),
+):
+    guard = require_admin(request)
+    if guard:
+        return guard
+
+    user = db.query(User).filter(User.id == user_id).one_or_none()
+    if not user:
+        return RedirectResponse(url="/admin/absentees?err=nouser", status_code=303)
+
+    if mode == "user":
+        # 依存（reports_p 等）は CASCADE で削除されます
+        db.delete(user)
+    else:
+        if user.roster:
+            db.delete(user.roster)
+    db.commit()
+    return RedirectResponse(url="/admin/absentees?ok=deleted", status_code=303)
 
 # --- roster upload ---
 @router.get("/admin/users", response_class=HTMLResponse)

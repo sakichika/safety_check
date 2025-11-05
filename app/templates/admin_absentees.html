@@ -6,10 +6,18 @@
   <title>未報告者</title>
   <style>
     body { font-family: system-ui, sans-serif; margin: 2rem; }
-    table { border-collapse: collapse; width: 100%; }
-    th, td { border: 1px solid #ddd; padding: .5rem .75rem; }
-    header { display:flex; justify-content:space-between; align-items:center; }
-    a.button { padding:.5rem .75rem; border:1px solid #aaa; background:#f8f8f8; text-decoration:none; }
+    header { display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap:.5rem; }
+    a.button, button { padding:.5rem .75rem; border:1px solid #aaa; background:#f8f8f8; text-decoration:none; cursor:pointer; }
+    .ok { background:#e8fff0; padding:.5rem 1rem; border-left:4px solid #2a5; margin:.75rem 0; }
+    .err { background:#ffecec; padding:.5rem 1rem; border-left:4px solid #c33; margin:.75rem 0; }
+    .grid { display:grid; grid-template-columns: 1.2fr 1.6fr 1fr .8fr .8fr 1fr 1.6fr; gap:.5rem; align-items:center; }
+    .row { border:1px solid #ddd; padding:.5rem; border-radius:.5rem; margin-bottom:.5rem; }
+    input[type="text"], input[type="email"] { width:100%; padding:.35rem; }
+    .actions { display:flex; gap:.4rem; flex-wrap:wrap; }
+    .danger { color:#a00; border-color:#a00; }
+    .muted { color:#666; }
+    .card { border:1px solid #ddd; padding:1rem; border-radius:.5rem; margin: .75rem 0 1rem; }
+    label.chk { display:flex; align-items:center; gap:.35rem; }
   </style>
 </head>
 <body>
@@ -20,22 +28,68 @@
     </nav>
   </header>
 
-  <table>
-    <thead>
-      <tr><th>名前</th><th>メール</th><th>グループ</th></tr>
-    </thead>
-    <tbody>
-      {% for r in rows %}
-        <tr>
-          <td>{{ r.name }}</td>
-          <td>{{ r.email }}</td>
-          <td>{{ r.group_name or '-' }}</td>
-        </tr>
-      {% endfor %}
-      {% if not rows %}
-        <tr><td colspan="3" style="text-align:center;color:#666;">未報告者は0人です。</td></tr>
-      {% endif %}
-    </tbody>
-  </table>
+  {% if ok %}
+    <div class="ok">完了: {{ ok }}</div>
+  {% endif %}
+  {% if err %}
+    <div class="err">エラー: {{ err }}</div>
+  {% endif %}
+
+  <div class="card">
+    <h2>単体追加</h2>
+    <form method="post" action="/admin/users/create_one" class="grid" style="grid-template-columns: 1.2fr 1.6fr 1fr .8fr 1fr 1fr .8fr;">
+      <input name="name" type="text" placeholder="名前" required />
+      <input name="email" type="email" placeholder="メール（識別子）" required />
+      <input name="dept" type="text" placeholder="部署（任意）" />
+      <input name="phone" type="text" placeholder="電話（任意）" />
+      <input name="group_name" type="text" placeholder="グループ（任意）" />
+      <label class="chk"><input type="checkbox" name="is_active" value="true" checked />アクティブ</label>
+      <button type="submit">追加</button>
+    </form>
+    <p class="muted" style="margin:.5rem 0 0;">※ 既存メールがある場合は「更新」として扱います。アクティブ=対象名簿に含める。</p>
+  </div>
+
+  <h2>未報告者一覧（行ごとに編集可）</h2>
+
+  <div class="grid muted" style="font-weight:600; margin-bottom:.25rem;">
+    <div>名前</div><div>メール</div><div>部署</div><div>電話</div><div>グループ</div><div>状態</div><div>操作</div>
+  </div>
+
+  {% for r in rows %}
+    <div class="row">
+      <form method="post" action="/admin/users/update_one">
+        <input type="hidden" name="user_id" value="{{ r.id }}" />
+        <div class="grid">
+          <div><input name="name" type="text" value="{{ r.name }}" required /></div>
+          <div><input name="email" type="email" value="{{ r.email }}" required /></div>
+          <div><input name="dept" type="text" value="{{ r.dept or '' }}" /></div>
+          <div><input name="phone" type="text" value="{{ r.phone or '' }}" /></div>
+          <div><input name="group_name" type="text" value="{{ r.group_name or '' }}" /></div>
+          <div>
+            <!-- チェック外すと送信されないので、ここは表示用。変更は下のトグルでOK -->
+            <span class="muted">{{ r.is_active and 'アクティブ' or '非アクティブ' }}</span>
+          </div>
+          <div class="actions">
+            <button type="submit">保存</button>
+      </form>
+            <form method="post" action="/admin/users/{{ r.id }}/toggle_active" onsubmit="return confirm('このユーザーの有効/無効を切り替えます。よろしいですか？');">
+              <button type="submit">{{ r.is_active and '無効化' or '有効化' }}</button>
+            </form>
+            <form method="post" action="/admin/users/{{ r.id }}/delete" onsubmit="return confirm('Roster（名簿）から外します。履歴は残ります。よろしいですか？');">
+              <input type="hidden" name="mode" value="roster" />
+              <button type="submit">Roster削除</button>
+            </form>
+            <form method="post" action="/admin/users/{{ r.id }}/delete" onsubmit="return confirm('ユーザーを完全削除します。関連レポートも削除されます。元に戻せません。よろしいですか？');">
+              <input type="hidden" name="mode" value="user" />
+              <button type="submit" class="danger">完全削除</button>
+            </form>
+          </div>
+        </div>
+    </div>
+  {% endfor %}
+
+  {% if not rows %}
+    <p class="muted">未報告者は0人です。</p>
+  {% endif %}
 </body>
 </html>
