@@ -137,36 +137,35 @@ async def admin_users_page(request: Request):
     return templates.TemplateResponse("admin_users.html", {"request": request, "ok": request.query_params.get("ok")})
 
 @router.post("/admin/users/upload")
-async def admin_users_upload(request: Request, csvfile: UploadFile = File(...), db: Session = Depends(get_db)):
+async def admin_users_upload(
+    request: Request,
+    csvfile: UploadFile = File(...),
+    replace: bool = Form(default=False),   # ← 置換モード
+    db: Session = Depends(get_db),
+):
     guard = require_admin(request)
     if guard:
         return guard
 
-    content = csvfile.file.read().decode('utf-8-sig')  # BOM対応
+    content = csvfile.file.read().decode('utf-8-sig')
     reader = csv.DictReader(io.StringIO(content))
-    upserted = 0
 
+    # 置換モードなら、まず全Rosterを is_active=False に落とす
+    if replace:
+        db.query(Roster).update({Roster.is_active: False})
+
+    seen_user_ids = set()
     for row in reader:
-        grade = _normalize_grade(row.get('grade') or '')
-        name  = (row.get('name') or '').strip()
-        if not grade or not name:
-            # 必須2項目が無ければスキップ
+        email = (row.get('email') or '').strip()
+        name  = (row.get('name')  or '').strip()
+        if not email or not name:
             continue
-
-        # 本人一意キー＝(grade, name)
-        user = db.query(User).filter(User.grade == grade, User.name == name).one_or_none()
+        user = db.query(User).filter(User.email == email).one_or_none()
         if not user:
-            user = User(grade=grade, name=name)  # emailなしでも作成可
+            user = User(email=email, name=name)
             db.add(user)
             db.flush()
-
-        # 連絡先や部局などは任意更新（emailが空でもOK）
-        email = (row.get('email') or '').strip()
-        user.email = email or user.email
-        user.dept  = (row.get('dept')  or user.dept)
-        user.phone = (row.get('phone') or user.phone)
-
-        # roster
+        # upsert
         group_name = row.get('group_name') or None
         is_active = (str(row.get('is_active', 'true')).lower() in ('true','1','yes','y'))
         if not user.roster:
@@ -174,8 +173,7 @@ async def admin_users_upload(request: Request, csvfile: UploadFile = File(...), 
         else:
             user.roster.group_name = group_name
             user.roster.is_active = is_active
-
-        upserted += 1
+        seen_user_ids.add(user.id)
 
     db.commit()
     return RedirectResponse(url="/admin/users?ok=1", status_code=303)
@@ -307,3 +305,43 @@ async def download_roster_template(request: Request):
     data = buf.getvalue().encode("utf-8-sig")
     return Response(content=data, media_type="text/csv; charset=utf-8",
                     headers={"Content-Disposition": 'attachment; filename="roster_template.csv"'})
+
+@router.post("/admin/users/delete_by_email")
+async def admin_users_delete_by_email(
+    request: Request,
+    email: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    guard = require_admin(request)
+    if guard:
+        return guard
+    user = db.query(User).filter(User.email == email).one_or_none()
+    if user and user.roster:
+        db.delete(user.roster)  # Rosterだけ削除
+        db.commit()
+        return RedirectResponse(url="/admin/users?ok=del1", status_code=303)
+    return RedirectResponse(url="/admin/users?err=notfound", status_code=303)
+
+@router.post("/admin/users/delete_csv")
+async def admin_users_delete_csv(
+    request: Request,
+    csvfile: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    guard = require_admin(request)
+    if guard:
+        return guard
+
+    content = csvfile.file.read().decode("utf-8-sig")
+    reader = csv.DictReader(io.StringIO(content))
+    n = 0
+    for row in reader:
+        email = (row.get("email") or "").strip()
+        if not email:
+            continue
+        user = db.query(User).filter(User.email == email).one_or_none()
+        if user and user.roster:
+            db.delete(user.roster)
+            n += 1
+    db.commit()
+    return RedirectResponse(url=f"/admin/users?ok=del{n}", status_code=303)
