@@ -1,0 +1,6 @@
+﻿grade,name,email,dept,phone,group_name,is_active
+Staff,Alice,alice@example.com,DeptA,090-0000-0000,Lab-A,true
+Doctor,Dr. Bob,bob@example.com,DeptB,090-0000-0001,Lab-B,true
+Master,Carol,,DeptA,,Lab-A,true
+Bachelor,Dave,,DeptC,,Lab-C,false
+Researcher,Eve,eve@example.com,DeptR,,Lab-R,true

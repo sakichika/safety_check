@@ -3,42 +3,193 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>名簿インポート</title>
+  <title>名簿管理</title>
   <style>
-    body { font-family: system-ui, sans-serif; margin: 2rem; max-width: 840px; }
-    .row { display:grid; grid-template-columns: 2fr 1fr; gap:1rem; }
-    .card { border:1px solid #ddd; padding:1rem; border-radius:.5rem; }
-    input[type=file], button { padding:.5rem; width:100%; }
-    pre { background:#f8f8f8; padding: .75rem; overflow:auto; }
-    a.button { padding:.5rem .75rem; border:1px solid #aaa; background:#f8f8f8; text-decoration:none; }
+    body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 2rem; }
+    header { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:.75rem; }
+    h1, h2 { margin-bottom:.4rem; }
+    .button, button {
+      padding:.45rem .7rem; border:1px solid #aaa; background:#f8f8f8;
+      text-decoration:none; color:#111; border-radius:.35rem; cursor:pointer;
+    }
+    .danger { border-color:#b44; color:#a00; }
+    .ok { background:#e8fff0; padding:.5rem 1rem; border-left:4px solid #2a5; margin:.75rem 0; }
+    .err { background:#ffecec; padding:.5rem 1rem; border-left:4px solid #c33; margin:.75rem 0; }
+    .card { border:1px solid #ddd; padding:1rem; border-radius:.6rem; margin:1rem 0; }
+    .muted { color:#666; font-size:.92rem; }
+    .two { display:grid; grid-template-columns: minmax(420px, 1fr) minmax(320px, .8fr); gap:1rem; }
+    input, select { padding:.4rem; border:1px solid #bbb; border-radius:.3rem; width:100%; box-sizing:border-box; }
+    input[type="checkbox"] { width:auto; }
+    pre { background:#f8f8f8; padding:.75rem; overflow:auto; border:1px solid #eee; }
+    .rowhead, .userrow {
+      display:grid;
+      grid-template-columns: 110px 180px 230px 190px 140px 140px 90px 230px;
+      gap:.45rem;
+      align-items:center;
+    }
+    .rowhead { font-weight:700; color:#555; margin:.5rem 0; }
+    .userrow { border:1px solid #ddd; border-radius:.5rem; padding:.5rem; margin-bottom:.45rem; }
+    .actions { display:flex; gap:.35rem; flex-wrap:wrap; }
+    .inline { display:inline; }
+    @media (max-width: 1100px) {
+      .two { grid-template-columns: 1fr; }
+      .rowhead { display:none; }
+      .userrow { grid-template-columns: 1fr; }
+      .actions { margin-top:.4rem; }
+    }
   </style>
 </head>
 <body>
-  <h1>名簿インポート（CSV）</h1>
-  <p><a class="button" href="/admin">← ダッシュボードへ</a></p>
+  <header>
+    <h1>名簿管理</h1>
+    <nav>
+      <a class="button" href="/admin">← ダッシュボード</a>
+      <a class="button" href="/admin/absentees">未報告者</a>
+      <a class="button" href="/admin/users/template.csv">CSVテンプレート</a>
+    </nav>
+  </header>
 
   {% if ok %}
-    <p style="background:#e8fff0; padding:.5rem 1rem; border-left:4px solid #2a5;">取り込みに成功しました。</p>
+    <div class="ok">完了: {{ ok }}</div>
+  {% endif %}
+  {% if err %}
+    <div class="err">
+      エラー: {{ err }}
+      {% if err == 'grade_name_required' %}（Grade と名前は必須です）{% endif %}
+      {% if err == 'duplicate_grade_name' %}（同じ Grade + 名前のユーザーが既に存在します）{% endif %}
+      {% if err == 'duplicate_or_constraint' %}（DB制約により保存できません。Grade+名前の重複などを確認してください）{% endif %}
+    </div>
   {% endif %}
 
-  <div class="row">
+  <div class="two">
     <div class="card">
-      <form method="post" action="/admin/users/upload" enctype="multipart/form-data">
-        <label for="csvfile">CSVファイルを選択</label>
-        <input id="csvfile" name="csvfile" type="file" accept=".csv" required>
-        <button type="submit" style="margin-top:.75rem;">アップロード</button>
+      <h2>1件追加 / 更新</h2>
+      <form method="post" action="/admin/users/create_one">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:.6rem;">
+          <div>
+            <label>Grade *</label>
+            <select name="grade" required>
+              <option value="">選択</option>
+              <option>Staff</option>
+              <option>Doctor</option>
+              <option>Researcher</option>
+              <option>Master</option>
+              <option>Bachelor</option>
+            </select>
+          </div>
+          <div>
+            <label>名前 *</label>
+            <input name="name" type="text" required placeholder="例: 鈴木 勉" />
+          </div>
+          <div>
+            <label>メール（任意・連絡先）</label>
+            <input name="email" type="email" placeholder="name@example.com" />
+          </div>
+          <div>
+            <label>部署</label>
+            <input name="dept" type="text" placeholder="Chemistry and Biotechnology" />
+          </div>
+          <div>
+            <label>電話</label>
+            <input name="phone" type="text" placeholder="03-xxxx-xxxx" />
+          </div>
+          <div>
+            <label>グループ</label>
+            <input name="group_name" type="text" placeholder="Lab-A" />
+          </div>
+        </div>
+        <p>
+          <label><input type="checkbox" name="is_active" value="true" checked> 有効（安否確認対象に含める）</label>
+        </p>
+        <button type="submit">追加 / 更新</button>
       </form>
+      <p class="muted">同じ Grade + 名前が既にある場合は、そのユーザー情報を更新します。</p>
     </div>
-    <div class="card">
-      <p>CSVフォーマット（UTF-8, ヘッダー必須）:</p>
-      <pre>grade,name,email,dept,phone,group_name,is_active
-      Staff,Alice,alice@example.com,DeptA,090-0000-0000,Lab-A,true
-      Doctor,Dr. Bob,bob@example.com,DeptB,090-0000-0001,Lab-B,true</pre>
 
-      <p>
-        <a class="button" href="/admin/users/template.csv">CSVテンプレートをダウンロード</a>
-      </p>
+    <div class="card">
+      <h2>CSV一括アップロード</h2>
+      <form method="post" action="/admin/users/upload" enctype="multipart/form-data">
+        <input name="csvfile" type="file" accept=".csv" required>
+        <p><label><input type="checkbox" name="replace" value="true"> 置換モード（CSVに無い既存ユーザーは無効化）</label></p>
+        <button type="submit">アップロード</button>
+      </form>
+
+      <p class="muted">CSVフォーマット（UTF-8, ヘッダー必須）:</p>
+      <pre>grade,name,email,dept,phone,group_name,is_active
+Staff,鈴木 勉,,Chemistry and Biotechnology,03-5841-1260,Suzuki Lab,true
+Doctor,田中 花,tanaka@example.com,DeptB,,Lab-B,true</pre>
+
+      <hr>
+      <h3>CSVで名簿から除外</h3>
+      <form method="post" action="/admin/users/delete_csv" enctype="multipart/form-data"
+            onsubmit="return confirm('CSVに載っているユーザーをRosterから除外します。よろしいですか？');">
+        <input name="csvfile" type="file" accept=".csv" required>
+        <button type="submit">CSVのユーザーをRoster削除</button>
+      </form>
+      <p class="muted">grade,name または email の列で対象を指定できます。履歴を残すため、User本体ではなくRosterから除外します。</p>
     </div>
   </div>
+
+  <h2>登録済みユーザー一覧</h2>
+  <p class="muted">
+    本人特定は <strong>Grade + 名前</strong> で行います。メールは連絡用で、空欄でも登録できます。
+    「無効」はユーザー情報を残したまま安否確認対象から外します。
+  </p>
+
+  <div class="rowhead">
+    <div>Grade</div><div>名前</div><div>メール</div><div>部署</div><div>電話</div><div>グループ</div><div>状態</div><div>操作</div>
+  </div>
+
+  {% for r in rows %}
+    <div class="userrow">
+      <form id="update-{{ r.id }}" method="post" action="/admin/users/update_one"></form>
+      <input form="update-{{ r.id }}" type="hidden" name="user_id" value="{{ r.id }}">
+
+      <div>
+        <select form="update-{{ r.id }}" name="grade" required>
+          {% for g in ['Staff','Doctor','Researcher','Master','Bachelor'] %}
+            <option value="{{ g }}" {% if r.grade == g %}selected{% endif %}>{{ g }}</option>
+          {% endfor %}
+          {% if r.grade not in ['Staff','Doctor','Researcher','Master','Bachelor'] %}
+            <option value="{{ r.grade }}" selected>{{ r.grade }}</option>
+          {% endif %}
+        </select>
+      </div>
+      <div><input form="update-{{ r.id }}" name="name" type="text" value="{{ r.name }}" required></div>
+      <div><input form="update-{{ r.id }}" name="email" type="email" value="{{ r.email or '' }}"></div>
+      <div><input form="update-{{ r.id }}" name="dept" type="text" value="{{ r.dept or '' }}"></div>
+      <div><input form="update-{{ r.id }}" name="phone" type="text" value="{{ r.phone or '' }}"></div>
+      <div><input form="update-{{ r.id }}" name="group_name" type="text" value="{{ r.group_name or '' }}"></div>
+      <div>
+        <label>
+          <input form="update-{{ r.id }}" name="is_active" type="checkbox" value="true" {% if r.is_active %}checked{% endif %}>
+          {{ '有効' if r.is_active else '無効' }}
+        </label>
+      </div>
+      <div class="actions">
+        <button form="update-{{ r.id }}" type="submit">保存</button>
+
+        <form class="inline" method="post" action="/admin/users/{{ r.id }}/toggle_active">
+          <button type="submit">{{ '無効化' if r.is_active else '有効化' }}</button>
+        </form>
+
+        <form class="inline" method="post" action="/admin/users/{{ r.id }}/delete"
+              onsubmit="return confirm('Rosterから除外します。報告履歴は残ります。よろしいですか？');">
+          <input type="hidden" name="mode" value="roster">
+          <button type="submit">Roster削除</button>
+        </form>
+
+        <form class="inline" method="post" action="/admin/users/{{ r.id }}/delete"
+              onsubmit="return confirm('ユーザーを完全削除します。関連する報告も削除される可能性があります。元に戻せません。よろしいですか？');">
+          <input type="hidden" name="mode" value="user">
+          <button class="danger" type="submit">完全削除</button>
+        </form>
+      </div>
+    </div>
+  {% endfor %}
+
+  {% if not rows %}
+    <p class="muted">登録済みユーザーはまだありません。</p>
+  {% endif %}
 </body>
 </html>
